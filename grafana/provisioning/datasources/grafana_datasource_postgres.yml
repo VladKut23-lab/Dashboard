@@ -1,0 +1,15 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL_Medianation
+    type: postgres
+    url: postgres:5432
+    database: medianation
+    user: medianation
+    secureJsonData:
+      password: medianation
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false
+    isDefault: true

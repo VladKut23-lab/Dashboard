@@ -1,0 +1,98 @@
+{
+  "title": "Медианация — Аналитический дашборд",
+  "uid": "medianation-main",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "1h",
+  "time": { "from": "now-90d", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "industry", "label": "Отрасль", "type": "query",
+        "datasource": "PostgreSQL_Medianation",
+        "query": "SELECT DISTINCT industry FROM dds.clients ORDER BY 1",
+        "multi": true, "includeAll": true, "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "platform", "label": "Платформа", "type": "query",
+        "datasource": "PostgreSQL_Medianation",
+        "query": "SELECT DISTINCT platform FROM dds.campaigns ORDER BY 1",
+        "multi": true, "includeAll": true, "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "manager", "label": "Менеджер", "type": "query",
+        "datasource": "PostgreSQL_Medianation",
+        "query": "SELECT DISTINCT manager FROM dds.clients ORDER BY 1",
+        "multi": true, "includeAll": true, "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "КРИ менеджеров: Бюджет (оборот за период)",
+      "type": "bargauge",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": "PostgreSQL_Medianation",
+      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["sum"] } },
+      "targets": [
+        {
+          "rawSql": "SELECT manager, SUM(turnover) AS budget FROM dm.agency_finance WHERE report_month BETWEEN $__timeFrom()::date AND $__timeTo()::date AND ('$manager' = '$__all' OR manager = ANY(string_to_array('$manager', ','))) GROUP BY manager ORDER BY budget DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Показатели платформ (CTR, CPC, Клики)",
+      "type": "table",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": "PostgreSQL_Medianation",
+      "fieldConfig": {
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "avg_ctr" }, "properties": [{ "id": "unit", "value": "percentunit" }, { "id": "thresholds", "value": { "steps": [{"color":"red","value":0},{"color":"yellow","value":0.025},{"color":"green","value":0.03}] } }] },
+          { "matcher": { "id": "byName", "options": "avg_cpc" }, "properties": [{ "id": "unit", "value": "currencyRUB" }] }
+        ]
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT platform, ROUND(AVG(avg_ctr),4) AS avg_ctr, ROUND(AVG(avg_cpc),2) AS avg_cpc, SUM(total_clicks) AS clicks FROM dm.platform_stats WHERE report_date BETWEEN $__timeFrom()::date AND $__timeTo()::date AND ('$platform' = '$__all' OR platform = ANY(string_to_array('$platform', ','))) GROUP BY platform ORDER BY clicks DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Бюджеты по отраслям (динамика)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 16 },
+      "datasource": "PostgreSQL_Medianation",
+      "fieldConfig": { "defaults": { "unit": "currencyRUB" } },
+      "targets": [
+        {
+          "rawSql": "SELECT report_month AS time, industry, SUM(total_spend) AS spend FROM dm.client_kpi WHERE report_month BETWEEN $__timeFrom()::date AND $__timeTo()::date AND ('$industry' = '$__all' OR industry = ANY(string_to_array('$industry', ','))) GROUP BY 1, 2 ORDER BY 1",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "KPI клиентов: расходы и конверсии",
+      "type": "table",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+      "datasource": "PostgreSQL_Medianation",
+      "fieldConfig": {
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "total_spend" }, "properties": [{ "id": "unit", "value": "currencyRUB" }, { "id": "custom.displayMode", "value": "color-background" }, { "id": "thresholds", "value": { "steps": [{"color":"blue","value":0},{"color":"green","value":500000}] } }] },
+          { "matcher": { "id": "byName", "options": "cpl" }, "properties": [{ "id": "unit", "value": "currencyRUB" }] }
+        ]
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT report_month, client_name, industry, total_spend, total_conversions, cpl FROM dm.client_kpi WHERE report_month BETWEEN $__timeFrom()::date AND $__timeTo()::date AND ('$industry' = '$__all' OR industry = ANY(string_to_array('$industry', ','))) ORDER BY total_spend DESC",
+          "format": "table"
+        }
+      ]
+    }
+  ]
+}
